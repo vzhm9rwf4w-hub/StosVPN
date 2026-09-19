@@ -1,0 +1,47 @@
+name: Build StosVPN IPA
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 自动生成导出配置plist
+      - name: Create export.plist
+        run: |
+          cat > export.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>development</string>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>stripSwiftSymbols</key>
+    <true/>
+    <key>thinning</key>
+    <string><none></string>
+</dict>
+</plist>
+EOF
+
+      # 打包归档
+      - name: Archive
+        run: |
+          xcodebuild -project StosVPN.xcodeproj -scheme StosVPN -configuration Release archive -archivePath build/StosVPN.xcarchive
+
+      # 导出IPA
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive -archivePath build/StosVPN.xcarchive -exportOptionsPlist export.plist -exportPath build/
+
+      # 上传IPA到下载产物
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: StosVPN-IPA
+          path: build/*.ipa
